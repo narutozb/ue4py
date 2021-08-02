@@ -7,7 +7,7 @@ from PIL import Image
 import unreal
 
 # Path
-# Project root path
+# Tools project root path
 ROOT_PATH = 'F:/github/ue4py'
 
 # User temp folder
@@ -26,6 +26,9 @@ if not os.path.exists(TEMP_IMG_FOLDER):
 TEMP_PREVIEW_IMG = os.path.join(TEMP_FOLDER, 'TEMP_PREVIEW_IMG')
 if not os.path.exists(TEMP_IMG_FOLDER):
     os.mkdir(TEMP_IMG_FOLDER)
+
+# UE project 's content path
+CONTENT_PATH = unreal.Paths.project_content_dir()
 
 # current time
 CURRENT_TIME = datetime.now().strftime('%y%m%d%H%M%S')
@@ -92,9 +95,10 @@ class Texture2DInfo(Detail):
             self.srgb,
             self.address_x,
             self.address_y,
-            self.source_file,
             self.texture_size_x,
             self.texture_size_y,
+            self.source_file,
+            self.referencers_for_asset,
         ]
         self.property_display_name_list = [item.property_display_name for item in res]
 
@@ -152,7 +156,11 @@ class Texture2DInfo(Detail):
         detail.property_display_name = 'Source File'
         detail.is_long_name = True
         detail.property_value = self.tex2d.get_editor_property(detail.property_name)
-        detail.display_name = detail.property_value.get_first_filename()
+        set_display_name = re.sub(r'\\', '/', detail.property_value.get_first_filename())
+        match = re.match(r'(\w.*)(/)(\w.*$)', set_display_name)
+        if match:
+            set_display_name = '%s%s\n%s' % (match.group(1), match.group(2), match.group(3))
+        detail.display_name = set_display_name
         return detail
 
     @property
@@ -176,11 +184,31 @@ class Texture2DInfo(Detail):
     @property
     def asset_full_path(self):
         detail = Detail()
-        match = re.sub(r'\.\w.*','',self.tex2d.get_path_name())
-        detail.display_name = match
+        path_name = re.sub(r'\.\w.*', '', self.tex2d.get_path_name())
+        detail.property_value = self.tex2d.get_path_name()
+        set_display_name = re.sub('^/Game/', CONTENT_PATH + '\n', path_name)
+        detail.display_name = set_display_name
         detail.property_display_name = 'Full Path'
         detail.is_long_name = True
         return detail
+
+    @property
+    def referencers_for_asset(self):
+        detail = Detail()
+        detail.property_display_name = 'Referencers'
+        detail.property_value = unreal.EditorAssetLibrary.find_package_referencers_for_asset(self.tex2d.get_path_name())
+        set_display_name = ''
+        for item in detail.property_value:
+            set_display_name += re.sub('^/Game/', '\n', item)
+        if not set_display_name:
+            set_display_name = 'None'
+        detail.display_name = set_display_name
+        detail.is_long_name = True
+        return detail
+
+    @property
+    def img_preview_path(self):
+        return re.sub(r'\.\w.*', '', self.tex2d.get_path_name())
 
 
 class Texture2DInfos(Texture2DInfo):
@@ -207,7 +235,7 @@ def get_texture_assets():
         if item.__class__ in list(TEXTURE_CLASS.values()):
             test11 = Texture2DInfo(item)
             detail = test11.detail
-            print(test11.name.display_name)
+            # print(test11.name.display_name)
             for ppp in detail:
                 print('\t%s:>%s<' % (ppp.property_display_name, ppp.display_name))
 
@@ -220,10 +248,6 @@ def set_html_list():
     # get property display name list
     details[0].detail
     property_display_name_list = details[0].property_display_name_list
-
-    # Save source image texture to temp folder
-    for detail in details:
-        print(detail)
 
     # set html content
     content = ' \n'
@@ -243,7 +267,8 @@ def set_html_list():
         tex2d_info_detail = tex2d_info.detail
         content += '<tr>\n'
 
-        content += '\t\t<td><img src=file:///%s.jpg></td>\n' % (TEMP_PREVIEW_IMG.replace('\\', '/')+tex2d_info.asset_full_path.display_name)
+        content += '\t\t<td><img src=file:///%s.jpg></td>\n' % (
+                TEMP_PREVIEW_IMG.replace('\\', '/') + tex2d_info.img_preview_path)
         for prop in tex2d_info_detail:
             if prop.is_long_name:
                 set_class_mark = 'class="LongName"'
@@ -266,7 +291,7 @@ def set_page(li, sub_title, instruction):
     content = re.sub(r'{{ content }}', li, content)
     content = re.sub(r'{{ sub_title }}', sub_title, content)
     content = re.sub(r'{{ instruction }}', instruction, content)
-    content = re.sub(r'{{ project_root_path }}', ROOT_PATH.replace('\\','/'), content)
+    content = re.sub(r'{{ project_root_path }}', ROOT_PATH.replace('\\', '/'), content)
     # save_html_path = os.path.join(qyzpath.temp_dir, 'jointsDetails.html')
     save_html_path = os.path.join(TEMP_FOLDER, 'texture_details.html')
     with open(save_html_path, 'w') as f:
@@ -290,7 +315,7 @@ def excute_import_tasks(textures):
 
 def convert_to_jpg(tga_texture_path):
     im = Image.open(tga_texture_path)
-    print('Opening:%s' % tga_texture_path)
+    # print('Opening:%s' % tga_texture_path)
 
     # Get save path
     save_jpg_path = re.sub(r'\.TGA$', '.jpg', tga_texture_path)
@@ -307,6 +332,11 @@ def convert_to_jpg(tga_texture_path):
 
 
 selected = unreal.EditorUtilityLibrary.get_selected_assets()
-
 excute_import_tasks(selected)
 set_page(set_html_list(), '', '')
+
+# for item in selected:
+#     referenced_assets = unreal.EditorAssetLibrary.find_package_referencers_for_asset(item.get_path_name())
+#     print(item.get_fname())
+#     for refed_asset in referenced_assets:
+#         print('\t%s:%s'%(refed_asset, refed_asset.__class__))
