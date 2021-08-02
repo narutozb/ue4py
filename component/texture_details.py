@@ -266,7 +266,7 @@ def set_page(li, sub_title, instruction):
     content = re.sub(r'{{ content }}', li, content)
     content = re.sub(r'{{ sub_title }}', sub_title, content)
     content = re.sub(r'{{ instruction }}', instruction, content)
-    content = re.sub(r'{{ project_root_path }}', ROOT_PATH, content)
+    content = re.sub(r'{{ project_root_path }}', ROOT_PATH.replace('\\','/'), content)
     # save_html_path = os.path.join(qyzpath.temp_dir, 'jointsDetails.html')
     save_html_path = os.path.join(TEMP_FOLDER, 'texture_details.html')
     with open(save_html_path, 'w') as f:
