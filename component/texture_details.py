@@ -30,6 +30,9 @@ if not os.path.exists(TEMP_IMG_FOLDER):
 # UE project 's content path
 CONTENT_PATH = unreal.Paths.project_content_dir()
 
+# current time
+CURRENT_TIME = datetime.now().strftime('%y%m%d%H%M%S')
+
 # texture_address_reference
 texture_address_reference = ['Wrap', 'Clamp', 'Mirror']
 
@@ -209,8 +212,10 @@ class Texture2DInfos(Texture2DInfo):
         '''
 
         '''
-        self.tex2d_list = unreal.EditorUtilityLibrary.get_selected_assets()
-
+        self.tex2d_list = []
+        for item in unreal.EditorUtilityLibrary.get_selected_assets():
+            if item.get_class() == unreal.Texture2D().get_class():
+                self.tex2d_list.append(item)
     @property
     def details(self):
         tex2d_details = []
@@ -219,6 +224,7 @@ class Texture2DInfos(Texture2DInfo):
             tex2d_details.append(Texture2DInfo(tex2d))
 
         return tex2d_details
+
 
 
 def set_html_list():
@@ -312,18 +318,15 @@ def convert_to_jpg(tga_texture_path):
     os.remove(tga_texture_path)
 
 
+
 def main():
-    # Get selected Textures
-    selected = unreal.EditorUtilityLibrary.get_selected_assets()
-    texture2d_list = [item for item in selected if item.__class__ == unreal.Texture2D]
-    if texture2d_list:
-        # export selected texture's preview jpg
-        excute_import_tasks(texture2d_list)
-        # make a html page
-        set_page(set_html_list(), '', '')
-    else:
-        return
+    selected_assets = unreal.EditorUtilityLibrary.get_selected_assets()
+    texture_array = unreal.Array(unreal.Texture2D)
+    for item in selected_assets:
+        if item.get_class() == unreal.Texture2D().get_class():
+            texture_array.append(item)
 
+    excute_import_tasks(texture_array)
+    set_page(set_html_list(), '', '')
 
-if __name__ == '__main__':
-    main()
+main()
