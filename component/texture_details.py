@@ -2,13 +2,33 @@ import os
 import re
 from datetime import datetime
 
+from PIL import Image
+
 import unreal
 
+# Path
 # Project root path
 ROOT_PATH = 'F:/github/ue4py'
 
+# User temp folder
+HOME = os.path.expanduser('~')
+
+#
+TEMP_FOLDER = os.path.join(HOME, 'CUSTOMUETEMP')
+if not os.path.exists(TEMP_FOLDER):
+    os.mkdir(TEMP_FOLDER)
+
+#
+TEMP_IMG_FOLDER = os.path.join(TEMP_FOLDER, 'TEMP_IMG')
+if not os.path.exists(TEMP_IMG_FOLDER):
+    os.mkdir(TEMP_IMG_FOLDER)
+
+TEMP_PREVIEW_IMG = os.path.join(TEMP_FOLDER, 'TEMP_PREVIEW_IMG')
+if not os.path.exists(TEMP_IMG_FOLDER):
+    os.mkdir(TEMP_IMG_FOLDER)
+
+# current time
 CURRENT_TIME = datetime.now().strftime('%y%m%d%H%M%S')
-print(CURRENT_TIME)
 
 # Texture object's class list
 TEXTURE_CLASS = {
@@ -17,7 +37,6 @@ TEXTURE_CLASS = {
 
 # texture_address_reference
 texture_address_reference = ['Wrap', 'Clamp', 'Mirror']
-
 
 
 class Name(object):
@@ -29,7 +48,10 @@ class Name(object):
     zh_cn = ''
     ja_jp = ''
     # set path or long type
-    long_name = False
+    is_long_name = False
+
+    # is display?
+    is_display = True
 
     def __init__(self):
         pass
@@ -65,12 +87,14 @@ class Texture2DInfo(Detail):
     @property
     def detail(self):
         res = [
-            # 'Name': self.tex2d.get_name(),
             self.name,
+            self.asset_full_path,
             self.srgb,
             self.address_x,
             self.address_y,
             self.source_file,
+            self.texture_size_x,
+            self.texture_size_y,
         ]
         self.property_display_name_list = [item.property_display_name for item in res]
 
@@ -116,7 +140,7 @@ class Texture2DInfo(Detail):
         detail = Detail()
         detail.property_name = 'Name'
         detail.property_display_name = 'Asset Name'
-        detail.long_name = True
+        detail.is_long_name = True
         detail.property_value = '%s' % self.tex2d.get_name()
         detail.display_name = detail.property_value
         return detail
@@ -126,9 +150,36 @@ class Texture2DInfo(Detail):
         detail = Detail()
         detail.property_name = 'asset_import_data'
         detail.property_display_name = 'Source File'
-        detail.long_name = True
+        detail.is_long_name = True
         detail.property_value = self.tex2d.get_editor_property(detail.property_name)
         detail.display_name = detail.property_value.get_first_filename()
+        return detail
+
+    @property
+    def texture_size_x(self):
+        detail = Detail()
+        detail.property_name = 'blueprint_get_size_x'
+        detail.property_display_name = 'Texture Size X'
+        detail.property_value = self.tex2d.blueprint_get_size_x()
+        detail.display_name = detail.property_value
+        return detail
+
+    @property
+    def texture_size_y(self):
+        detail = Detail()
+        detail.property_name = 'blueprint_get_size_y'
+        detail.property_display_name = 'Texture Size Y'
+        detail.property_value = self.tex2d.blueprint_get_size_x()
+        detail.display_name = detail.property_value
+        return detail
+
+    @property
+    def asset_full_path(self):
+        detail = Detail()
+        match = re.sub(r'\.\w.*','',self.tex2d.get_path_name())
+        detail.display_name = match
+        detail.property_display_name = 'Full Path'
+        detail.is_long_name = True
         return detail
 
 
@@ -160,21 +211,27 @@ def get_texture_assets():
             for ppp in detail:
                 print('\t%s:>%s<' % (ppp.property_display_name, ppp.display_name))
 
-            # print(item.get_editor_property('address_x'))
-
 
 def set_html_list():
+    # Get Texture2dInfos
     tex2d_infos = Texture2DInfos()
 
+    details = tex2d_infos.details
+    # get property display name list
+    details[0].detail
+    property_display_name_list = details[0].property_display_name_list
+
+    # Save source image texture to temp folder
+    for detail in details:
+        print(detail)
+
+    # set html content
     content = ' \n'
     content += '<table id="tableSort">\n'
     content += '\t<thead>\n'
     content += '\t<tr>\n'
 
-    details = tex2d_infos.details
-    details[0].detail
-    property_display_name_list = details[0].property_display_name_list
-
+    content += '''\t<th onclick="$.sortTable.sort('tableSort',0)" style="cursor: pointer;">Image</th>\n'''
     for prop_display_name in property_display_name_list:
         content += '''\t<th onclick="$.sortTable.sort('tableSort',0)" style="cursor: pointer;">%s</th>\n''' % (
             prop_display_name)
@@ -186,11 +243,13 @@ def set_html_list():
         tex2d_info_detail = tex2d_info.detail
         content += '<tr>\n'
 
+        content += '\t\t<td><img src=file:///%s.jpg></td>\n' % (TEMP_PREVIEW_IMG.replace('\\', '/')+tex2d_info.asset_full_path.display_name)
         for prop in tex2d_info_detail:
-            if prop.long_name:
+            if prop.is_long_name:
                 set_class_mark = 'class="LongName"'
             else:
                 set_class_mark = ''
+
             content += '\t\t<td %s>%s</td>\n' % (set_class_mark, prop.display_name)
 
         content += '\n'
@@ -209,11 +268,45 @@ def set_page(li, sub_title, instruction):
     content = re.sub(r'{{ instruction }}', instruction, content)
     content = re.sub(r'{{ project_root_path }}', ROOT_PATH, content)
     # save_html_path = os.path.join(qyzpath.temp_dir, 'jointsDetails.html')
-    save_html_path = r'd:\temp.html'
+    save_html_path = os.path.join(TEMP_FOLDER, 'texture_details.html')
     with open(save_html_path, 'w') as f:
         f.write(content)
     os.startfile(save_html_path)
     return content
 
 
+def excute_import_tasks(textures):
+    unreal.AssetToolsHelpers.get_asset_tools().export_assets(textures, export_path=TEMP_PREVIEW_IMG)
+
+    for item in textures:
+        path_original = os.path.normpath('%s%s' % (TEMP_PREVIEW_IMG, item.get_path_name()))
+
+        match = re.match(r'(\w.*\.)(\w.*)', path_original)
+        if match:
+            tga_texture_path = '%s%s' % (match.group(1), 'TGA')
+
+        convert_to_jpg(tga_texture_path)
+
+
+def convert_to_jpg(tga_texture_path):
+    im = Image.open(tga_texture_path)
+    print('Opening:%s' % tga_texture_path)
+
+    # Get save path
+    save_jpg_path = re.sub(r'\.TGA$', '.jpg', tga_texture_path)
+
+    # Resize image
+    im = im.resize((256, 256))
+
+    # Convert to RGB
+    im = im.convert('RGB')
+
+    # Save Image
+    im.save(save_jpg_path, compression=None)
+    os.remove(tga_texture_path)
+
+
+selected = unreal.EditorUtilityLibrary.get_selected_assets()
+
+excute_import_tasks(selected)
 set_page(set_html_list(), '', '')
