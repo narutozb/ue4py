@@ -30,14 +30,6 @@ if not os.path.exists(TEMP_IMG_FOLDER):
 # UE project 's content path
 CONTENT_PATH = unreal.Paths.project_content_dir()
 
-# current time
-CURRENT_TIME = datetime.now().strftime('%y%m%d%H%M%S')
-
-# Texture object's class list
-TEXTURE_CLASS = {
-    'Texture2D': unreal.Texture2D,
-}
-
 # texture_address_reference
 texture_address_reference = ['Wrap', 'Clamp', 'Mirror']
 
