@@ -229,17 +229,6 @@ class Texture2DInfos(Texture2DInfo):
         return tex2d_details
 
 
-def get_texture_assets():
-    selected_assets = unreal.EditorUtilityLibrary.get_selected_assets()
-    for item in selected_assets:
-        if item.__class__ in list(TEXTURE_CLASS.values()):
-            test11 = Texture2DInfo(item)
-            detail = test11.detail
-            # print(test11.name.display_name)
-            for ppp in detail:
-                print('\t%s:>%s<' % (ppp.property_display_name, ppp.display_name))
-
-
 def set_html_list():
     # Get Texture2dInfos
     tex2d_infos = Texture2DInfos()
@@ -331,12 +320,18 @@ def convert_to_jpg(tga_texture_path):
     os.remove(tga_texture_path)
 
 
-selected = unreal.EditorUtilityLibrary.get_selected_assets()
-excute_import_tasks(selected)
-set_page(set_html_list(), '', '')
+def main():
+    # Get selected Textures
+    selected = unreal.EditorUtilityLibrary.get_selected_assets()
+    texture2d_list = [item for item in selected if item.__class__ == unreal.Texture2D]
+    if texture2d_list:
+        # export selected texture's preview jpg
+        excute_import_tasks(texture2d_list)
+        # make a html page
+        set_page(set_html_list(), '', '')
+    else:
+        return
 
-# for item in selected:
-#     referenced_assets = unreal.EditorAssetLibrary.find_package_referencers_for_asset(item.get_path_name())
-#     print(item.get_fname())
-#     for refed_asset in referenced_assets:
-#         print('\t%s:%s'%(refed_asset, refed_asset.__class__))
+
+if __name__ == '__main__':
+    main()
