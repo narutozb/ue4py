@@ -33,6 +33,11 @@ CONTENT_PATH = unreal.Paths.project_content_dir()
 # current time
 CURRENT_TIME = datetime.now().strftime('%y%m%d%H%M%S')
 
+# Texture object's class list
+TEXTURE_CLASS = {
+    'Texture2D': unreal.Texture2D,
+}
+
 # texture_address_reference
 texture_address_reference = ['Wrap', 'Clamp', 'Mirror']
 
@@ -326,7 +331,8 @@ def main():
         if item.get_class() == unreal.Texture2D().get_class():
             texture_array.append(item)
 
-    excute_import_tasks(texture_array)
-    set_page(set_html_list(), '', '')
+    if len(texture_array) >0:
+        excute_import_tasks(texture_array)
+        set_page(set_html_list(), '', '')
 
 main()
